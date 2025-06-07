@@ -1,0 +1,527 @@
+{% extends 'base.html' %}
+
+{% block title %}Synthèse Vocale{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tts-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .text-input {
+        min-height: 150px;
+        resize: vertical;
+    }
+    
+    .audio-player {
+        width: 100%;
+        margin-top: 15px;
+        background-color: #2a2a2a;
+        border-radius: 5px;
+        padding: 10px;
+    }
+    
+    .audio-player audio {
+        width: 100%;
+    }
+    
+    .audio-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    .audio-controls button {
+        flex: 1;
+    }
+    
+    .waveform-container {
+        height: 100px;
+        background-color: #1a1a1a;
+        border-radius: 5px;
+        margin: 15px 0;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .waveform {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .waveform-bar {
+        width: 3px;
+        margin: 0 2px;
+        background: linear-gradient(to top, var(--primary-color), var(--secondary-color));
+        border-radius: 2px;
+    }
+    
+    .tab-content {
+        padding: 20px 0;
+    }
+    
+    .model-select-container {
+        margin-bottom: 20px;
+    }
+    
+    .speed-slider-container {
+        padding: 0 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-comment-alt me-2"></i> Synthèse Vocale (TTS)
+                </h4>
+                <span class="badge bg-info">VoiceStudio</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> Utilisez cette page pour convertir du texte en parole avec les modèles vocaux importés et EdgeTTS.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-sliders-h me-2"></i> Configuration
+            </div>
+            <div class="card-body">
+                <div class="model-select-container">
+                    <div class="mb-3">
+                        <label for="voice-model" class="form-label">Modèle vocal:</label>
+                        <select class="form-select" id="voice-model">
+                            <option value="" disabled selected>Sélectionnez un modèle vocal</option>
+                            <!-- Les modèles seront chargés dynamiquement ici -->
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="index-file" class="form-label">Fichier d'index:</label>
+                        <select class="form-select" id="index-file">
+                            <option value="" disabled selected>Sélectionnez un fichier d'index</option>
+                            <!-- Les fichiers d'index seront chargés dynamiquement ici -->
+                        </select>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="mb-3">
+                    <label for="tts-voice" class="form-label">Voix TTS à utiliser:</label>
+                    <select class="form-select" id="tts-voice">
+                        <option value="" disabled selected>Sélectionnez une voix TTS</option>
+                        <!-- Les voix seront chargées dynamiquement ici -->
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="tts-speed" class="form-label">Vitesse TTS:</label>
+                    <div class="speed-slider-container">
+                        <input type="range" class="form-range" id="tts-speed" min="-100" max="100" value="0">
+                        <div class="d-flex justify-content-between">
+                            <span>-100</span>
+                            <span id="speed-value">0</span>
+                            <span>100</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-info-circle me-2"></i> Informations de sortie
+            </div>
+            <div class="card-body">
+                <div class="output-section" id="output-info">
+                    Les informations de sortie seront affichées ici.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-keyboard me-2"></i> Texte à synthétiser
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs" id="inputTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-input-tab" type="button" role="tab" aria-controls="text-input-tab" aria-selected="true">
+                            <i class="fas fa-font me-2"></i> Texte
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="file-tab" data-bs-toggle="tab" data-bs-target="#file-input-tab" type="button" role="tab" aria-controls="file-input-tab" aria-selected="false">
+                            <i class="fas fa-file-alt me-2"></i> Fichier
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="inputTabsContent">
+                    <div class="tab-pane fade show active" id="text-input-tab" role="tabpanel" aria-labelledby="text-tab">
+                        <textarea class="form-control text-input" id="text-to-synthesize" placeholder="Entrez le texte à synthétiser ici..."></textarea>
+                    </div>
+                    <div class="tab-pane fade" id="file-input-tab" role="tabpanel" aria-labelledby="file-tab">
+                        <div class="mb-3">
+                            <label for="text-file" class="form-label">Sélectionnez un fichier texte:</label>
+                            <input class="form-control" type="file" id="text-file" accept=".txt,.md,.html">
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> Formats supportés: .txt, .md, .html
+                        </div>
+                        <div class="file-content-preview" id="file-content-preview">
+                            L'aperçu du contenu du fichier sera affiché ici.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 mt-3">
+                    <button class="btn btn-primary" id="convert-button">
+                        <i class="fas fa-play-circle me-2"></i> Convertir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-volume-up me-2"></i> Audio généré
+            </div>
+            <div class="card-body">
+                <div class="waveform-container">
+                    <div class="waveform" id="audio-waveform">
+                        <!-- La forme d'onde sera générée dynamiquement ici -->
+                    </div>
+                </div>
+                
+                <div class="audio-player" id="audio-player-container">
+                    <audio controls id="audio-player" class="d-none">
+                        <source src="" type="audio/wav">
+                        Votre navigateur ne supporte pas l'élément audio.
+                    </audio>
+                    <div class="text-center text-muted" id="no-audio-message">
+                        <i class="fas fa-music me-2"></i> L'audio généré sera affiché ici
+                    </div>
+                </div>
+                
+                <div class="audio-controls mt-3">
+                    <button class="btn btn-outline-primary" id="play-audio" disabled>
+                        <i class="fas fa-play me-2"></i> Lecture
+                    </button>
+                    <button class="btn btn-outline-secondary" id="download-audio" disabled>
+                        <i class="fas fa-download me-2"></i> Télécharger
+                    </button>
+                    <button class="btn btn-outline-danger" id="clear-audio" disabled>
+                        <i class="fas fa-trash-alt me-2"></i> Effacer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Éléments DOM
+        const voiceModelSelect = document.getElementById('voice-model');
+        const indexFileSelect = document.getElementById('index-file');
+        const ttsVoiceSelect = document.getElementById('tts-voice');
+        const ttsSpeedSlider = document.getElementById('tts-speed');
+        const speedValueDisplay = document.getElementById('speed-value');
+        const textInput = document.getElementById('text-to-synthesize');
+        const textFileInput = document.getElementById('text-file');
+        const fileContentPreview = document.getElementById('file-content-preview');
+        const convertButton = document.getElementById('convert-button');
+        const outputInfo = document.getElementById('output-info');
+        const audioPlayer = document.getElementById('audio-player');
+        const audioPlayerContainer = document.getElementById('audio-player-container');
+        const noAudioMessage = document.getElementById('no-audio-message');
+        const playAudioButton = document.getElementById('play-audio');
+        const downloadAudioButton = document.getElementById('download-audio');
+        const clearAudioButton = document.getElementById('clear-audio');
+        const audioWaveform = document.getElementById('audio-waveform');
+        
+        // Variables globales
+        let currentAudioUrl = null;
+        let currentAudioId = null;
+        
+        // Mise à jour de l'affichage de la vitesse
+        ttsSpeedSlider.addEventListener('input', function() {
+            speedValueDisplay.textContent = this.value;
+        });
+        
+        // Charger les modèles vocaux
+        function loadVoiceModels() {
+            ajaxRequest('/api/download/models')
+                .then(response => {
+                    if (response.models && response.models.length > 0) {
+                        voiceModelSelect.innerHTML = '<option value="" disabled selected>Sélectionnez un modèle vocal</option>';
+                        indexFileSelect.innerHTML = '<option value="" disabled selected>Sélectionnez un fichier d\'index</option>';
+                        
+                        response.models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model.path;
+                            option.textContent = model.name;
+                            voiceModelSelect.appendChild(option);
+                            
+                            if (model.has_index) {
+                                const indexOption = document.createElement('option');
+                                indexOption.value = model.path.replace('.pth', '.index');
+                                indexOption.textContent = model.name + '.index';
+                                indexFileSelect.appendChild(indexOption);
+                            }
+                        });
+                    } else {
+                        voiceModelSelect.innerHTML = '<option value="" disabled selected>Aucun modèle disponible</option>';
+                        indexFileSelect.innerHTML = '<option value="" disabled selected>Aucun fichier d\'index disponible</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur chargement modèles:', error);
+                    voiceModelSelect.innerHTML = '<option value="" disabled selected>Erreur de chargement</option>';
+                    indexFileSelect.innerHTML = '<option value="" disabled selected>Erreur de chargement</option>';
+                });
+        }
+        
+        // Charger les voix TTS
+        function loadTTSVoices() {
+            ajaxRequest('/api/tts/voices')
+                .then(response => {
+                    if (response.voices && response.voices.length > 0) {
+                        ttsVoiceSelect.innerHTML = '<option value="" disabled selected>Sélectionnez une voix TTS</option>';
+                        
+                        response.voices.forEach(voice => {
+                            const option = document.createElement('option');
+                            option.value = voice.id;
+                            option.textContent = voice.name + (voice.gender ? ` (${voice.gender})` : '');
+                            ttsVoiceSelect.appendChild(option);
+                        });
+                        
+                        // Sélectionner une voix française par défaut si disponible
+                        const frenchVoice = response.voices.find(v => v.id.startsWith('fr-'));
+                        if (frenchVoice) {
+                            ttsVoiceSelect.value = frenchVoice.id;
+                        }
+                    } else {
+                        ttsVoiceSelect.innerHTML = '<option value="" disabled selected>Aucune voix disponible</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur chargement voix:', error);
+                    ttsVoiceSelect.innerHTML = '<option value="" disabled selected>Erreur de chargement</option>';
+                });
+        }
+        
+        // Gérer l'upload de fichier texte
+        textFileInput.addEventListener('change', function() {
+            if (this.files.length === 0) return;
+            
+            const file = this.files[0];
+            fileContentPreview.innerHTML = `<div><i class="fas fa-spinner fa-spin me-2"></i> Chargement de ${file.name}...</div>`;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            ajaxRequest('/api/tts/upload-text', 'POST', formData, true)
+                .then(response => {
+                    if (response.status === 'success') {
+                        fileContentPreview.innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i> Fichier chargé: ${response.filename}
+                            </div>
+                            <div class="card">
+                                <div class="card-header">Aperçu du contenu</div>
+                                <div class="card-body">
+                                    <p>${response.content}</p>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Stocker le contenu complet pour la conversion
+                        fileContentPreview.dataset.fullContent = response.full_content;
+                    } else {
+                        fileContentPreview.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i> Erreur: ${response.error}</div>`;
+                    }
+                })
+                .catch(error => {
+                    fileContentPreview.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i> Erreur: ${error.statusText || 'Erreur inconnue'}</div>`;
+                    console.error('Erreur upload fichier:', error);
+                });
+        });
+        
+        // Générer une forme d'onde aléatoire
+        function generateWaveform() {
+            audioWaveform.innerHTML = '';
+            for (let i = 0; i < 100; i++) {
+                const height = Math.floor(Math.random() * 80) + 10;
+                const bar = document.createElement('div');
+                bar.className = 'waveform-bar';
+                bar.style.height = height + 'px';
+                audioWaveform.appendChild(bar);
+            }
+        }
+        
+        // Convertir le texte en audio
+        convertButton.addEventListener('click', function() {
+            // Vérifier les sélections
+            const voiceModel = voiceModelSelect.value;
+            const indexFile = indexFileSelect.value;
+            const ttsVoice = ttsVoiceSelect.value;
+            
+            if (!ttsVoice) {
+                showNotification('Veuillez sélectionner une voix TTS', 'error');
+                return;
+            }
+            
+            // Récupérer le texte à convertir
+            let text = '';
+            const activeTab = document.querySelector('.tab-pane.active');
+            
+            if (activeTab.id === 'text-input-tab') {
+                text = textInput.value.trim();
+                if (!text) {
+                    showNotification('Veuillez entrer du texte à synthétiser', 'error');
+                    return;
+                }
+            } else {
+                if (!fileContentPreview.dataset.fullContent) {
+                    showNotification('Veuillez sélectionner un fichier texte', 'error');
+                    return;
+                }
+                text = fileContentPreview.dataset.fullContent;
+            }
+            
+            // Préparer les paramètres
+            const params = {
+                text: text,
+                tts_voice: ttsVoice,
+                tts_speed: parseInt(ttsSpeedSlider.value),
+                voice_model: voiceModel || null,
+                index_file: indexFile || null
+            };
+            
+            // Afficher l'overlay de chargement
+            showLoading('Conversion en cours...');
+            
+            // Mettre à jour les informations de sortie
+            outputInfo.innerHTML = '<div><i class="fas fa-spinner fa-spin me-2"></i> Conversion du texte en audio...</div>';
+            
+            // Appeler l'API de conversion
+            ajaxRequest('/api/tts/convert', 'POST', params)
+                .then(response => {
+                    hideLoading();
+                    
+                    if (response.status === 'success') {
+                        outputInfo.innerHTML += `<div class="text-success"><i class="fas fa-check-circle me-2"></i> Conversion terminée avec succès!</div>`;
+                        
+                        // Mettre à jour l'audio player
+                        audioPlayer.src = response.audio_url;
+                        audioPlayer.classList.remove('d-none');
+                        noAudioMessage.classList.add('d-none');
+                        
+                        // Activer les boutons
+                        playAudioButton.disabled = false;
+                        downloadAudioButton.disabled = false;
+                        clearAudioButton.disabled = false;
+                        
+                        // Générer une forme d'onde
+                        generateWaveform();
+                        
+                        // Stocker l'URL et l'ID de l'audio
+                        currentAudioUrl = response.audio_url;
+                        currentAudioId = response.audio_id;
+                        
+                        showNotification('Audio généré avec succès!', 'success');
+                    } else {
+                        outputInfo.innerHTML += `<div class="text-danger"><i class="fas fa-times-circle me-2"></i> Erreur: ${response.error}</div>`;
+                        showNotification('Erreur lors de la conversion', 'error');
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    outputInfo.innerHTML += `<div class="text-danger"><i class="fas fa-times-circle me-2"></i> Erreur: ${error.statusText || 'Erreur inconnue'}</div>`;
+                    showNotification('Erreur lors de la conversion', 'error');
+                    console.error('Erreur conversion:', error);
+                });
+        });
+        
+        // Contrôles audio
+        playAudioButton.addEventListener('click', function() {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                this.innerHTML = '<i class="fas fa-pause me-2"></i> Pause';
+            } else {
+                audioPlayer.pause();
+                this.innerHTML = '<i class="fas fa-play me-2"></i> Lecture';
+            }
+        });
+        
+        downloadAudioButton.addEventListener('click', function() {
+            if (currentAudioUrl) {
+                const a = document.createElement('a');
+                a.href = currentAudioUrl;
+                a.download = `audio_${currentAudioId || Date.now()}.wav`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        });
+        
+        clearAudioButton.addEventListener('click', function() {
+            audioPlayer.src = '';
+            audioPlayer.classList.add('d-none');
+            noAudioMessage.classList.remove('d-none');
+            
+            playAudioButton.disabled = true;
+            playAudioButton.innerHTML = '<i class="fas fa-play me-2"></i> Lecture';
+            downloadAudioButton.disabled = true;
+            clearAudioButton.disabled = true;
+            
+            currentAudioUrl = null;
+            currentAudioId = null;
+            
+            audioWaveform.innerHTML = '';
+        });
+        
+        // Événement de fin de lecture
+        audioPlayer.addEventListener('ended', function() {
+            playAudioButton.innerHTML = '<i class="fas fa-play me-2"></i> Lecture';
+        });
+        
+        // Initialisation
+        loadVoiceModels();
+        loadTTSVoices();
+    });
+</script>
+{% endblock %}

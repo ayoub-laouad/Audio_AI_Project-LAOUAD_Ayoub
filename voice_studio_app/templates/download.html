@@ -1,0 +1,531 @@
+{% extends 'base.html' %}
+
+{% block title %}Import{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-zone {
+        border: 2px dashed #444;
+        border-radius: 10px;
+        padding: 40px 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        background-color: rgba(255, 255, 255, 0.05);
+        margin-bottom: 20px;
+    }
+    
+    .upload-zone:hover, .upload-zone.active {
+        border-color: var(--secondary-color);
+        background-color: rgba(37, 117, 252, 0.1);
+    }
+    
+    .upload-icon {
+        font-size: 3rem;
+        color: var(--secondary-color);
+        margin-bottom: 15px;
+    }
+    
+    .model-card {
+        background-color: #2a2a2a;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .model-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .model-info {
+        font-size: 0.9rem;
+        color: #aaa;
+    }
+    
+    .download-btn {
+        width: 100%;
+        margin-top: 10px;
+    }
+    
+    .model-select {
+        margin-bottom: 15px;
+    }
+    
+    .arabic-text {
+        font-family: 'Arial', sans-serif;
+        direction: rtl;
+        text-align: center;
+        margin: 10px 0;
+        font-size: 1.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-download me-2"></i> Import de modèles
+                </h4>
+                <span class="badge bg-info">VoiceStudio</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> Importez des fichiers .pth ou .index pour les utiliser dans l'application. Vous pouvez également télécharger des modèles pré-entraînés.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Section téléchargement par URL -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-link me-2"></i> Télécharger par URL
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="model-url" class="form-label">Lien vers le modèle:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="model-url" placeholder="https://exemple.com/modele.pth">
+                        <button class="btn btn-primary" type="button" id="download-url">
+                            <i class="fas fa-download me-2"></i> Télécharger
+                        </button>
+                    </div>
+                    <small class="text-muted">Entrez l'URL directe vers un fichier .pth ou .index</small>
+                </div>
+                
+                <div class="output-section" id="download-output">
+                    Les informations de téléchargement seront affichées ici.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Section informations de sortie -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-info-circle me-2"></i> Informations de sortie
+            </div>
+            <div class="card-body">
+                <div class="output-section" id="output-info">
+                    Les informations de sortie seront affichées ici.
+                </div>
+                
+                <div class="mt-3">
+                    <button class="btn btn-outline-secondary" id="refresh-models">
+                        <i class="fas fa-sync-alt me-2"></i> Rafraîchir la liste des modèles
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Section glisser-déposer -->
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-file-upload me-2"></i> Déposez des fichiers
+            </div>
+            <div class="card-body">
+                <div class="upload-zone" id="drop-zone">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <h5>Glissez et déposez vos fichiers ici</h5>
+                    <p class="text-muted">ou</p>
+                    <div class="file-upload-container">
+                        <button class="btn btn-outline-primary" id="browse-files">
+                            <i class="fas fa-folder-open me-2"></i> Parcourir les fichiers
+                        </button>
+                        <input type="file" id="file-input" style="display: none;" multiple accept=".pth,.index">
+                    </div>
+                    
+                    <div class="arabic-text mt-3">
+                        أسقط الملف هنا
+                        <br>
+                        - أو -
+                        <br>
+                        إضغط للتحميل
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Veuillez glisser votre fichier .pth et votre fichier .index dans cet espace. Faites glisser un seul fichier à la fois.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Section modèles pré-entraînés -->
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-box-open me-2"></i> Télécharger des modèles pré-entraînés
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label for="pretrained-model" class="form-label">Modèle pré-entraîné:</label>
+                        <select class="form-select" id="pretrained-model">
+                            <option value="" selected disabled>Sélectionnez un modèle pré-entraîné</option>
+                            <option value="titan">Titan</option>
+                            <option value="athena">Athena</option>
+                            <option value="zeus">Zeus</option>
+                            <option value="apollo">Apollo</option>
+                            <option value="hera">Hera</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="sampling-rate" class="form-label">Taux d'échantillonnage:</label>
+                        <select class="form-select" id="sampling-rate">
+                            <option value="40k" selected>40k</option>
+                            <option value="48k">48k</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button class="btn btn-primary" id="download-pretrained">
+                            <i class="fas fa-download me-2"></i> Télécharger
+                        </button>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h5 class="mb-3">Modèles disponibles</h5>
+                <div class="row" id="models-container">
+                    <!-- Les modèles seront chargés dynamiquement ici -->
+                    <div class="col-12 text-center">
+                        <div class="spinner-border text-secondary" role="status">
+                            <span class="visually-hidden">Chargement...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des modèles importés -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-list me-2"></i> Modèles importés
+            </div>
+            <div class="card-body">
+                <div id="imported-models-list">
+                    <!-- Les modèles importés seront affichés ici -->
+                    <div class="text-center">
+                        <div class="spinner-border text-secondary" role="status">
+                            <span class="visually-hidden">Chargement...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Modèles pré-entraînés
+        const pretrainedModels = [
+            {
+                id: "titan",
+                name: "Titan",
+                description: "Modèle polyvalent avec une bonne qualité générale",
+                voice_type: "Masculine profonde",
+                size: "120 MB"
+            },
+            {
+                id: "athena",
+                name: "Athena",
+                description: "Excellente qualité pour les voix féminines",
+                voice_type: "Féminine claire",
+                size: "135 MB"
+            },
+            {
+                id: "zeus",
+                name: "Zeus",
+                description: "Idéal pour les voix autoritaires",
+                voice_type: "Masculine puissante",
+                size: "140 MB"
+            },
+            {
+                id: "apollo",
+                name: "Apollo",
+                description: "Parfait pour les voix mélodieuses",
+                voice_type: "Masculine douce",
+                size: "125 MB"
+            }
+        ];
+        
+        // Afficher les modèles pré-entraînés
+        function displayPretrainedModels() {
+            const container = document.getElementById('models-container');
+            container.innerHTML = '';
+            
+            pretrainedModels.forEach(model => {
+                const modelCard = document.createElement('div');
+                modelCard.className = 'col-md-6 mb-3';
+                modelCard.innerHTML = `
+                    <div class="model-card">
+                        <h6>${model.name}</h6>
+                        <div class="model-info">
+                            <p><i class="fas fa-info-circle me-2"></i> ${model.description}</p>
+                            <p><i class="fas fa-microphone me-2"></i> ${model.voice_type}</p>
+                            <p><i class="fas fa-file-audio me-2"></i> Taille: ${model.size}</p>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary download-btn" data-model="${model.id}">
+                            <i class="fas fa-download me-2"></i> Télécharger ${model.name}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(modelCard);
+            });
+            
+            // Ajouter les événements aux boutons de téléchargement
+            document.querySelectorAll('.download-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const modelId = this.getAttribute('data-model');
+                    const sampleRate = document.getElementById('sampling-rate').value;
+                    downloadPretrainedModel(modelId, sampleRate);
+                });
+            });
+        }
+        
+        // Charger les modèles importés
+        function loadImportedModels() {
+            const container = document.getElementById('imported-models-list');
+            
+            ajaxRequest('/api/download/models')
+                .then(response => {
+                    if (response.models && response.models.length > 0) {
+                        container.innerHTML = '<div class="table-responsive"><table class="table table-dark table-hover"><thead><tr><th>Nom</th><th>Chemin</th><th>Index</th></tr></thead><tbody></tbody></table></div>';
+                        const tbody = container.querySelector('tbody');
+                        
+                        response.models.forEach(model => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${model.name}</td>
+                                <td>${model.path}</td>
+                                <td>${model.has_index ? '<span class="text-success"><i class="fas fa-check-circle"></i> Oui</span>' : '<span class="text-warning"><i class="fas fa-times-circle"></i> Non</span>'}</td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    } else {
+                        container.innerHTML = '<div class="alert alert-info">Aucun modèle importé pour le moment.</div>';
+                    }
+                })
+                .catch(error => {
+                    container.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des modèles.</div>';
+                    console.error('Erreur chargement modèles:', error);
+                });
+        }
+        
+        // Télécharger un modèle pré-entraîné
+        function downloadPretrainedModel(modelId, sampleRate) {
+            const outputInfo = document.getElementById('output-info');
+            outputInfo.innerHTML = '<div><i class="fas fa-spinner fa-spin me-2"></i> Téléchargement du modèle ' + modelId + ' (' + sampleRate + ')...</div>';
+            
+            showLoading(`Téléchargement du modèle ${modelId}...`);
+            
+            ajaxRequest('/api/download/pretrained-model', 'POST', {
+                model_id: modelId,
+                sample_rate: sampleRate
+            })
+                .then(response => {
+                    hideLoading();
+                    
+                    if (response.status === 'success') {
+                        outputInfo.innerHTML += `<div class="text-success"><i class="fas fa-check-circle me-2"></i> ${response.message}</div>`;
+                        outputInfo.innerHTML += `<div><i class="fas fa-info-circle me-2"></i> Fichiers sauvegardés dans: ${response.model_path}</div>`;
+                        
+                        showNotification(`Modèle ${modelId} téléchargé avec succès!`, 'success');
+                        
+                        // Rafraîchir la liste des modèles importés
+                        loadImportedModels();
+                    } else {
+                        outputInfo.innerHTML += `<div class="text-danger"><i class="fas fa-times-circle me-2"></i> Erreur: ${response.error}</div>`;
+                        showNotification('Erreur lors du téléchargement du modèle', 'error');
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    outputInfo.innerHTML += `<div class="text-danger"><i class="fas fa-times-circle me-2"></i> Erreur: ${error.statusText || 'Erreur inconnue'}</div>`;
+                    showNotification('Erreur lors du téléchargement du modèle', 'error');
+                    console.error('Erreur téléchargement:', error);
+                });
+        }
+        
+        // Téléchargement par URL
+        document.getElementById('download-url').addEventListener('click', function() {
+            const url = document.getElementById('model-url').value.trim();
+            const downloadOutput = document.getElementById('download-output');
+            
+            if (!url) {
+                downloadOutput.innerHTML = '<div class="text-danger"><i class="fas fa-exclamation-circle me-2"></i> Veuillez entrer une URL valide</div>';
+                return;
+            }
+            
+            downloadOutput.innerHTML = '<div><i class="fas fa-spinner fa-spin me-2"></i> Téléchargement en cours...</div>';
+            
+            showLoading('Téléchargement depuis URL...');
+            
+            ajaxRequest('/api/download/from-url', 'POST', { url: url })
+                .then(response => {
+                    hideLoading();
+                    
+                    if (response.status === 'success') {
+                        downloadOutput.innerHTML += `<div class="text-success"><i class="fas fa-check-circle me-2"></i> ${response.message}</div>`;
+                        showNotification(response.message, 'success');
+                        
+                        // Rafraîchir la liste des modèles importés
+                        loadImportedModels();
+                    } else {
+                        downloadOutput.innerHTML += `<div class="text-danger"><i class="fas fa-times-circle me-2"></i> Erreur: ${response.error}</div>`;
+                        showNotification('Erreur lors du téléchargement', 'error');
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    downloadOutput.innerHTML += `<div class="text-danger"><i class="fas fa-times-circle me-2"></i> Erreur: ${error.statusText || 'Erreur inconnue'}</div>`;
+                    showNotification('Erreur lors du téléchargement', 'error');
+                    console.error('Erreur téléchargement URL:', error);
+                });
+        });
+        
+        // Téléchargement de modèles pré-entraînés
+        document.getElementById('download-pretrained').addEventListener('click', function() {
+            const model = document.getElementById('pretrained-model').value;
+            const rate = document.getElementById('sampling-rate').value;
+            
+            if (!model) {
+                showNotification('Veuillez sélectionner un modèle', 'error');
+                return;
+            }
+            
+            downloadPretrainedModel(model, rate);
+        });
+        
+        // Gestion du glisser-déposer
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const outputInfo = document.getElementById('output-info');
+        
+        // Bouton parcourir
+        document.getElementById('browse-files').addEventListener('click', function() {
+            fileInput.click();
+        });
+        
+        // Événements de glisser-déposer
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            dropZone.classList.add('active');
+        }
+        
+        function unhighlight() {
+            dropZone.classList.remove('active');
+        }
+        
+        // Gestion du dépôt de fichiers
+        dropZone.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+        
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+        
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            
+            outputInfo.innerHTML = '<div><i class="fas fa-spinner fa-spin me-2"></i> Traitement des fichiers...</div>';
+            
+            for (let i = 0; i < files.length; i++) {
+                uploadFile(files[i]);
+            }
+        }
+        
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            showLoading(`Upload du fichier ${file.name}...`);
+            
+            ajaxRequest('/api/download/upload', 'POST', formData, true)
+                .then(response => {
+                    hideLoading();
+                    
+                    if (response.status === 'success') {
+                        outputInfo.innerHTML += `<div class="text-success"><i class="fas fa-check-circle me-2"></i> ${response.message}</div>`;
+                        showNotification(response.message, 'success');
+                        
+                        // Rafraîchir la liste des modèles importés
+                        loadImportedModels();
+                    } else {
+                        outputInfo.innerHTML += `<div class="text-danger"><i class="fas fa-times-circle me-2"></i> Erreur: ${response.error}</div>`;
+                        showNotification('Erreur lors de l\'upload', 'error');
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    outputInfo.innerHTML += `<div class="text-danger"><i class="fas fa-times-circle me-2"></i> Erreur: ${error.statusText || 'Erreur inconnue'}</div>`;
+                    showNotification('Erreur lors de l\'upload', 'error');
+                    console.error('Erreur upload:', error);
+                });
+        }
+        
+        // Rafraîchir la liste des modèles
+        document.getElementById('refresh-models').addEventListener('click', function() {
+            outputInfo.innerHTML = '<div><i class="fas fa-spinner fa-spin me-2"></i> Actualisation de la liste des modèles...</div>';
+            
+            loadImportedModels();
+            
+            setTimeout(() => {
+                outputInfo.innerHTML += '<div class="text-success"><i class="fas fa-check-circle me-2"></i> Liste des modèles actualisée!</div>';
+            }, 500);
+        });
+        
+        // Initialisation
+        displayPretrainedModels();
+        loadImportedModels();
+    });
+</script>
+{% endblock %}

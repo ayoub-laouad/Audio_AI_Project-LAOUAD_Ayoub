@@ -1,0 +1,525 @@
+{% extends 'base.html' %}
+
+{% block title %}Entraînement{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gpu-info {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 5px;
+        padding: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .step-number {
+        display: inline-block;
+        width: 30px;
+        height: 30px;
+        line-height: 30px;
+        text-align: center;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        border-radius: 50%;
+        margin-right: 10px;
+        font-weight: bold;
+    }
+    
+    .pitch-algorithm {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    .pitch-option {
+        flex: 1;
+        min-width: 100px;
+    }
+    
+    .train-button {
+        min-height: 50px;
+        font-size: 1.1rem;
+    }
+    
+    .file-path-display {
+        background-color: #2a2a2a;
+        padding: 8px 12px;
+        border-radius: 5px;
+        margin-top: 5px;
+        word-break: break-all;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i> Entraînement de modèle vocal
+                </h4>
+                <span class="badge bg-info">VoiceStudio</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> Cette application est open source et fonctionne entièrement en local. Les fichiers audio et modèles sont stockés uniquement sur votre ordinateur.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Étape 1: Configuration de l'expérience -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <span class="step-number">1</span> Configuration de l'expérience
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="experiment-name" class="form-label">Nom de l'expérience:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="experiment-name" placeholder="mon-modele-vocal">
+                        <button class="btn btn-outline-secondary" type="button" id="generate-name">
+                            <i class="fas fa-random"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted">Le nom sera utilisé pour créer un dossier contenant la configuration, les logs et les fichiers du modèle.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Taux d'échantillonnage:</label>
+                    <div class="d-flex gap-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="sample-rate" id="rate-40k" value="40k" checked>
+                            <label class="form-check-label" for="rate-40k">40k</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="sample-rate" id="rate-48k" value="48k">
+                            <label class="form-check-label" for="rate-48k">48k</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Version:</label>
+                    <div class="d-flex gap-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="version" id="version-v1" value="v1" checked>
+                            <label class="form-check-label" for="version-v1">v1</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="version" id="version-v2" value="v2">
+                            <label class="form-check-label" for="version-v2">v2</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="cpu-count" class="form-label">Nombre de processeurs CPU utilisés:</label>
+                    <input type="range" class="form-range" id="cpu-count" min="1" max="16" value="8">
+                    <div class="d-flex justify-content-between">
+                        <span>1</span>
+                        <span id="cpu-count-value">8</span>
+                        <span>16</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Étape 2: Sélection du dossier d'entraînement -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <span class="step-number">2</span> Dossier d'entraînement
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="training-folder" class="form-label">Chemin du dossier d'entraînement:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="training-folder" placeholder="C:/Users/username/Documents/training_data">
+                        <button class="btn btn-outline-secondary" type="button" id="browse-folder">
+                            <i class="fas fa-folder-open"></i> Parcourir
+                        </button>
+                    </div>
+                    <div class="file-path-display" id="selected-folder-path">Aucun dossier sélectionné</div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> Le dossier doit contenir des fichiers audio qui seront automatiquement traités. Seul l'entraînement mono-locuteur est supporté actuellement.
+                </div>
+                
+                <div class="output-section" id="folder-info">
+                    Les informations sur le dossier d'entraînement seront affichées ici.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Étape 3: Configuration GPU et extraction -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <span class="step-number">3</span> Configuration GPU et extraction
+            </div>
+            <div class="card-body">
+                <div class="gpu-info mb-3">
+                    <h6><i class="fas fa-microchip me-2"></i> Information GPU</h6>
+                    <div id="gpu-info-display">Détection du matériel en cours...</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="gpu-indices" class="form-label">Indices GPU à utiliser (séparés par des virgules):</label>
+                    <input type="text" class="form-control" id="gpu-indices" placeholder="0, 1, 2">
+                    <small class="text-muted">Ex: 0-1-2 pour utiliser les GPU 0, 1 et 2</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Algorithme d'extraction de pitch:</label>
+                    <div class="pitch-algorithm">
+                        <div class="form-check pitch-option">
+                            <input class="form-check-input" type="radio" name="pitch-algorithm" id="algo-pm" value="pm" checked>
+                            <label class="form-check-label" for="algo-pm">PM</label>
+                            <small class="d-block text-muted">Extraction rapide, qualité moyenne</small>
+                        </div>
+                        <div class="form-check pitch-option">
+                            <input class="form-check-input" type="radio" name="pitch-algorithm" id="algo-harvest" value="harvest">
+                            <label class="form-check-label" for="algo-harvest">Harvest</label>
+                            <small class="d-block text-muted">Meilleure qualité, plus lent</small>
+                        </div>
+                        <div class="form-check pitch-option">
+                            <input class="form-check-input" type="radio" name="pitch-algorithm" id="algo-dio" value="dio">
+                            <label class="form-check-label" for="algo-dio">DIO</label>
+                            <small class="d-block text-muted">Qualité améliorée, vitesse moyenne</small>
+                        </div>
+                        <div class="form-check pitch-option">
+                            <input class="form-check-input" type="radio" name="pitch-algorithm" id="algo-rmvpe" value="rmvpe">
+                            <label class="form-check-label" for="algo-rmvpe">RMVPE</label>
+                            <small class="d-block text-muted">Recommandé pour la plupart des cas</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Étape 4: Paramètres d'entraînement -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <span class="step-number">4</span> Paramètres d'entraînement
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="save-frequency" class="form-label">Fréquence de sauvegarde:</label>
+                        <input type="number" class="form-control" id="save-frequency" value="5" min="1" max="100">
+                        <small class="text-muted">Nombre d'époques entre chaque sauvegarde</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="total-epochs" class="form-label">Nombre total d'époques:</label>
+                        <input type="number" class="form-control" id="total-epochs" value="20" min="1" max="1000">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="batch-size" class="form-label">Taille de batch par GPU:</label>
+                    <input type="range" class="form-range" id="batch-size" min="1" max="16" value="4">
+                    <div class="d-flex justify-content-between">
+                        <span>1</span>
+                        <span id="batch-size-value">4</span>
+                        <span>16</span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="save-only-latest" checked>
+                        <label class="form-check-label" for="save-only-latest">Sauvegarder uniquement le dernier checkpoint</label>
+                    </div>
+                    <small class="text-muted">Économise de l'espace disque en ne gardant que le dernier fichier</small>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="cache-datasets">
+                        <label class="form-check-label" for="cache-datasets">Mettre en cache les données d'entraînement</label>
+                    </div>
+                    <small class="text-muted">Accélère l'entraînement pour les petits datasets mais consomme plus de mémoire</small>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="save-small-model" checked>
+                        <label class="form-check-label" for="save-small-model">Sauvegarder un modèle réduit</label>
+                    </div>
+                    <small class="text-muted">Crée un fichier modèle plus petit pour l'inférence</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Étape 5: Modèles pré-entraînés -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <span class="step-number">5</span> Modèles pré-entraînés
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="base-model" class="form-label">Modèle de base:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="base-model" placeholder="chemin/vers/modele_base.pth">
+                        <button class="btn btn-outline-secondary" type="button" id="browse-base-model">
+                            <i class="fas fa-file-audio"></i>
+                        </button>
+                    </div>
+                    <div class="file-path-display" id="selected-base-model">Aucun modèle sélectionné</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="index-model" class="form-label">Modèle d'index:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="index-model" placeholder="chemin/vers/modele_index.pth">
+                        <button class="btn btn-outline-secondary" type="button" id="browse-index-model">
+                            <i class="fas fa-file-audio"></i>
+                        </button>
+                    </div>
+                    <div class="file-path-display" id="selected-index-model">Aucun modèle sélectionné</div>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i> L'utilisation de modèles pré-entraînés est optionnelle mais peut améliorer les résultats et accélérer l'entraînement.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Étape 6: Lancement et suivi -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <span class="step-number">6</span> Lancement et suivi
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    <button class="btn btn-primary train-button" id="train-model">
+                        <i class="fas fa-play-circle me-2"></i> Entraîner le modèle
+                    </button>
+                    <button class="btn btn-secondary train-button" id="train-index">
+                        <i class="fas fa-project-diagram me-2"></i> Entraîner l'index de caractéristiques
+                    </button>
+                </div>
+                
+                <hr>
+                
+                <h6 class="mb-3">Informations de sortie</h6>
+                <div class="output-section" id="training-output">
+                    Les informations d'entraînement seront affichées ici.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mise à jour des valeurs des sliders
+        document.getElementById('cpu-count').addEventListener('input', function() {
+            document.getElementById('cpu-count-value').textContent = this.value;
+        });
+        
+        document.getElementById('batch-size').addEventListener('input', function() {
+            document.getElementById('batch-size-value').textContent = this.value;
+        });
+        
+        // Récupérer les informations GPU
+        ajaxRequest('/api/train/gpu-info')
+            .then(response => {
+                if (response.gpus && response.gpus.length > 0) {
+                    const gpuInfo = response.gpus[0];
+                    document.getElementById('gpu-info-display').innerHTML = 
+                        `<div class="text-success"><i class="fas fa-check-circle me-2"></i> GPU détecté: ${gpuInfo.name} (${gpuInfo.memory})</div>`;
+                    document.getElementById('gpu-indices').value = '0';
+                } else {
+                    document.getElementById('gpu-info-display').innerHTML = 
+                        '<div class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i> Aucun GPU détecté, l\'entraînement sera plus lent</div>';
+                }
+            })
+            .catch(error => {
+                document.getElementById('gpu-info-display').innerHTML = 
+                    '<div class="text-danger"><i class="fas fa-times-circle me-2"></i> Erreur lors de la détection du GPU</div>';
+                console.error('Erreur GPU:', error);
+            });
+        
+        // Simulation de la sélection de dossier
+        document.getElementById('browse-folder').addEventListener('click', function() {
+            const folderPath = 'C:/Users/username/Documents/voice_samples';
+            document.getElementById('training-folder').value = folderPath;
+            document.getElementById('selected-folder-path').textContent = folderPath;
+            
+            // Analyser le dossier via l'API
+            ajaxRequest('/api/train/analyze-folder', 'POST', { folder_path: folderPath })
+                .then(response => {
+                    document.getElementById('folder-info').innerHTML = 
+                        `Dossier analysé:<br>` +
+                        `- ${response.file_count} fichiers audio trouvés<br>` +
+                        `- Format: ${response.extensions.join(', ')}<br>` +
+                        `- Taille totale: ${response.formatted_size}`;
+                })
+                .catch(error => {
+                    document.getElementById('folder-info').innerHTML = 
+                        '<div class="text-danger"><i class="fas fa-times-circle me-2"></i> Erreur lors de l\'analyse du dossier</div>';
+                    console.error('Erreur analyse:', error);
+                });
+        });
+        
+        // Simulation de la sélection de modèles
+        document.getElementById('browse-base-model').addEventListener('click', function() {
+            const modelPath = 'C:/Users/username/Documents/models/base_model.pth';
+            document.getElementById('base-model').value = modelPath;
+            document.getElementById('selected-base-model').textContent = modelPath;
+        });
+        
+        document.getElementById('browse-index-model').addEventListener('click', function() {
+            const modelPath = 'C:/Users/username/Documents/models/index_model.pth';
+            document.getElementById('index-model').value = modelPath;
+            document.getElementById('selected-index-model').textContent = modelPath;
+        });
+        
+        // Lancement d'entraînement
+        document.getElementById('train-model').addEventListener('click', function() {
+            const experimentName = document.getElementById('experiment-name').value.trim();
+            if (!experimentName) {
+                showNotification('Veuillez entrer un nom d\'expérience', 'error');
+                return;
+            }
+            
+            const trainingFolder = document.getElementById('training-folder').value.trim();
+            if (!trainingFolder) {
+                showNotification('Veuillez sélectionner un dossier d\'entraînement', 'error');
+                return;
+            }
+            
+            // Récupérer tous les paramètres
+            const params = {
+                experiment_name: experimentName,
+                training_folder: trainingFolder,
+                sample_rate: document.querySelector('input[name="sample-rate"]:checked').value,
+                version: document.querySelector('input[name="version"]:checked').value,
+                cpu_count: parseInt(document.getElementById('cpu-count').value),
+                gpu_indices: document.getElementById('gpu-indices').value,
+                pitch_algorithm: document.querySelector('input[name="pitch-algorithm"]:checked').value,
+                save_frequency: parseInt(document.getElementById('save-frequency').value),
+                total_epochs: parseInt(document.getElementById('total-epochs').value),
+                batch_size: parseInt(document.getElementById('batch-size').value),
+                save_only_latest: document.getElementById('save-only-latest').checked,
+                cache_datasets: document.getElementById('cache-datasets').checked,
+                save_small_model: document.getElementById('save-small-model').checked,
+                base_model: document.getElementById('base-model').value,
+                index_model: document.getElementById('index-model').value
+            };
+            
+            // Afficher l'overlay de chargement
+            showLoading('Entraînement en cours...');
+            
+            // Afficher les informations dans la console de sortie
+            const outputElement = document.getElementById('training-output');
+            outputElement.innerHTML = 'Initialisation de l\'entraînement...<br>';
+            
+            // Appeler l'API d'entraînement
+            ajaxRequest('/api/train/start-training', 'POST', params)
+                .then(response => {
+                    hideLoading();
+                    
+                    if (response.status === 'success') {
+                        outputElement.innerHTML += `<span class="text-success">Entraînement terminé avec succès!</span><br>`;
+                        outputElement.innerHTML += `Modèle sauvegardé dans: ${response.training_result.model_path}<br>`;
+                        outputElement.innerHTML += `Index sauvegardé dans: ${response.training_result.index_path}<br>`;
+                        
+                        showNotification(`Entraînement de "${experimentName}" terminé avec succès!`, 'success');
+                    } else {
+                        outputElement.innerHTML += `<span class="text-danger">Erreur lors de l'entraînement: ${response.error}</span><br>`;
+                        showNotification('Erreur lors de l\'entraînement', 'error');
+                    }
+                    
+                    outputElement.scrollTop = outputElement.scrollHeight;
+                })
+                .catch(error => {
+                    hideLoading();
+                    outputElement.innerHTML += `<span class="text-danger">Erreur lors de l'entraînement: ${error.statusText || 'Erreur inconnue'}</span><br>`;
+                    showNotification('Erreur lors de l\'entraînement', 'error');
+                    console.error('Erreur entraînement:', error);
+                    outputElement.scrollTop = outputElement.scrollHeight;
+                });
+        });
+        
+        // Entraînement de l'index
+        document.getElementById('train-index').addEventListener('click', function() {
+            const experimentName = document.getElementById('experiment-name').value.trim();
+            if (!experimentName) {
+                showNotification('Veuillez entrer un nom d\'expérience', 'error');
+                return;
+            }
+            
+            // Récupérer les paramètres nécessaires
+            const params = {
+                experiment_name: experimentName,
+                pitch_algorithm: document.querySelector('input[name="pitch-algorithm"]:checked').value
+            };
+            
+            // Afficher l'overlay de chargement
+            showLoading('Entraînement de l\'index en cours...');
+            
+            // Afficher les informations dans la console de sortie
+            const outputElement = document.getElementById('training-output');
+            outputElement.innerHTML = 'Initialisation de l\'entraînement de l\'index...<br>';
+            
+            // Appeler l'API d'entraînement de l'index
+            ajaxRequest('/api/train/train-index', 'POST', params)
+                .then(response => {
+                    hideLoading();
+                    
+                    if (response.status === 'success') {
+                        outputElement.innerHTML += `<span class="text-success">Entraînement de l'index terminé avec succès!</span><br>`;
+                        outputElement.innerHTML += `Index sauvegardé dans: ${response.index_path}<br>`;
+                        
+                        showNotification(`Entraînement de l'index "${experimentName}" terminé avec succès!`, 'success');
+                    } else {
+                        outputElement.innerHTML += `<span class="text-danger">Erreur lors de l'entraînement de l'index: ${response.error}</span><br>`;
+                        showNotification('Erreur lors de l\'entraînement de l\'index', 'error');
+                    }
+                    
+                    outputElement.scrollTop = outputElement.scrollHeight;
+                })
+                .catch(error => {
+                    hideLoading();
+                    outputElement.innerHTML += `<span class="text-danger">Erreur lors de l'entraînement de l'index: ${error.statusText || 'Erreur inconnue'}</span><br>`;
+                    showNotification('Erreur lors de l\'entraînement de l\'index', 'error');
+                    console.error('Erreur entraînement index:', error);
+                    outputElement.scrollTop = outputElement.scrollHeight;
+                });
+        });
+        
+        // Génération de nom aléatoire
+        document.getElementById('generate-name').addEventListener('click', function() {
+            const prefixes = ['voice', 'model', 'speaker', 'vocal'];
+            const suffixes = ['01', '02', 'A', 'B', 'pro', 'test'];
+            const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+            const randomSuffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+            document.getElementById('experiment-name').value = `${randomPrefix}_${randomSuffix}`;
+        });
+    });
+</script>
+{% endblock %}
